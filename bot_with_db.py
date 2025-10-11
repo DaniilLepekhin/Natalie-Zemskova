@@ -21,6 +21,7 @@ from openai import OpenAI
 from pdf_generator import create_analysis_pdf
 from config import TELEGRAM_TOKEN, OPENAI_API_KEY, OPENAI_MODEL
 from database import get_db
+from metamethod_analyzer import analyze_with_metamethod
 
 # Настройка логирования
 logging.basicConfig(
@@ -77,19 +78,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     welcome_message = f"""Привет, {username}! 👋
 
-Я — бот для проведения диагностики по Мета-Методу.
+Я — бот для практики самопознания по Мета-Методу.
 
-**Как я работаю:**
+<b>Как я работаю:</b>
 1. Ты отправляешь мне своё фото
-2. Пишешь свой запрос (что хочешь проработать)
-3. Я провожу глубокий анализ через GPT-4o с учетом твоего фото и запроса
-4. Ты получаешь детальный разбор в формате красивого PDF файла
+2. Пишешь свой запрос — что хочешь проработать в себе
+3. Я создаю для тебя глубокий разбор через GPT-4o
+4. Ты получаешь красивый PDF с практиками трансформации
 
-**Начнём?**
-Отправь мне своё фото (лицо должно быть хорошо видно).
+<b>Примеры запросов:</b>
+• Хочу выйти на новый уровень дохода
+• Не получается построить гармоничные отношения
+• Постоянная усталость и выгорание
+• Страх проявляться и реализовываться
+
+<b>Начнём?</b>
+Отправь мне своё фото (можно с подписью-запросом).
 """
 
-    await update.message.reply_text(welcome_message)
+    await update.message.reply_text(welcome_message, parse_mode='HTML')
     return WAITING_FOR_PHOTO
 
 
@@ -112,43 +119,43 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     user_sessions[user_id].photo_path = photo_path
 
-    await update.message.reply_text(
-        "Отлично! Фото получено. ✨\n\n"
-        "Теперь напиши свой запрос. Например:\n"
-        "• Не хватает финансов, хочу выйти на новый уровень дохода\n"
-        "• Хочу встретить свою судьбу и построить счастливые отношения\n"
-        "• Хочу реализоваться и перестать бояться проявляться публично\n"
-        "• Что блокирует мой бизнес/здоровье/творчество?"
-    )
+    # Проверяем, есть ли подпись к фото (caption)
+    caption = update.message.caption
+    if caption and len(caption.strip()) > 10:  # Если есть осмысленная подпись
+        # Сохраняем запрос из подписи
+        user_sessions[user_id].request_text = caption.strip()
 
-    return WAITING_FOR_REQUEST
-
-
-async def receive_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Получение текстового запроса и запуск анализа"""
-    user_id = update.effective_user.id
-
-    if user_id not in user_sessions or not user_sessions[user_id].photo_path:
-        await update.message.reply_text(
-            "Сначала отправь фото! Используй /start для начала."
+        # Показываем что работаем
+        processing_msg = await update.message.reply_text(
+            "⏳ Провожу глубокий многоуровневый анализ...\n"
+            "Это займёт 30-60 секунд.\n"
+            "Я прохожу через 5 этапов: программы → род → чакры → фразы → компоновка 🔮✨"
         )
-        return ConversationHandler.END
 
-    user_sessions[user_id].request_text = update.message.text
+        # Сразу запускаем анализ
+        return await process_analysis(update, context, processing_msg)
+    else:
+        # Если подписи нет - просим написать запрос
+        await update.message.reply_text(
+            "Отлично! Фото получено. ✨\n\n"
+            "Теперь напиши свой запрос. Например:\n"
+            "• Не хватает финансов, хочу выйти на новый уровень дохода\n"
+            "• Хочу встретить свою судьбу и построить счастливые отношения\n"
+            "• Хочу реализоваться и перестать бояться проявляться публично\n"
+            "• Что блокирует мой бизнес/здоровье/творчество?"
+        )
+        return WAITING_FOR_REQUEST
 
-    # Показываем что работаем
-    processing_msg = await update.message.reply_text(
-        "⏳ Провожу глубокий анализ...\n"
-        "Это может занять 30-60 секунд.\n"
-        "Я учитываю твоё фото и запрос. 🔮"
-    )
+
+async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, processing_msg) -> int:
+    """Выполнение анализа и отправка результата"""
+    user_id = update.effective_user.id
 
     try:
         start_time = time.time()
 
-        # Выполняем анализ через GPT-4o
-        analysis_result, tokens_used = await analyze_with_gpt4o(
-            user_sessions[user_id].photo_path,
+        # Выполняем анализ через multi-step MetaMethod analyzer
+        analysis_result, tokens_used = await analyze_with_metamethod(
             user_sessions[user_id].request_text,
             user_sessions[user_id].username
         )
@@ -211,6 +218,28 @@ async def receive_request(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return ConversationHandler.END
 
 
+async def receive_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение текстового запроса и запуск анализа"""
+    user_id = update.effective_user.id
+
+    if user_id not in user_sessions or not user_sessions[user_id].photo_path:
+        await update.message.reply_text(
+            "Сначала отправь фото! Используй /start для начала."
+        )
+        return ConversationHandler.END
+
+    user_sessions[user_id].request_text = update.message.text
+
+    # Показываем что работаем
+    processing_msg = await update.message.reply_text(
+        "⏳ Провожу глубокий многоуровневый анализ...\n"
+        "Это займёт 30-60 секунд.\n"
+        "Я прохожу через 5 этапов: программы → род → чакры → фразы → компоновка 🔮✨"
+    )
+
+    return await process_analysis(update, context, processing_msg)
+
+
 async def analyze_with_gpt4o(photo_path: str, request_text: str, username: str) -> tuple:
     """
     Анализ через GPT-4o Vision
@@ -235,13 +264,13 @@ async def analyze_with_gpt4o(photo_path: str, request_text: str, username: str) 
                 "content": [
                     {
                         "type": "text",
-                        "text": f"Проведи анализ для человека по имени {username}.\n\nЗапрос клиента: {request_text}\n\nУчитывай энергетику и состояние с фотографии."
+                        "text": f"Человек по имени {username} делится своим образом для практики самопознания и духовного роста.\n\nЗапрос: {request_text}\n\nПосмотри на образ - что передаёт выражение, какая энергетика считывается, что чувствуется. Используй это как дополнительный контекст для глубины практики."
                     },
                     {
                         "type": "image_url",
                         "image_url": {
                             "url": f"data:image/jpeg;base64,{base64_image}",
-                            "detail": "high"  # Высокое качество анализа
+                            "detail": "high"
                         }
                     }
                 ]
@@ -307,18 +336,18 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         recent = db.get_recent_analyses(limit=5)
         themes = db.get_theme_statistics()
 
-        stats_text = f"""📊 **Твоя статистика**
+        stats_text = f"""📊 <b>Твоя статистика</b>
 
 Всего анализов: {user_stats['total_analyses']}
 Зарегистрирован: {user_stats['created_at'].strftime('%d.%m.%Y')}
 Последняя активность: {user_stats['last_active'].strftime('%d.%m.%Y %H:%M')}
 
-**Популярные темы:**
+<b>Популярные темы:</b>
 """
         for theme in themes[:5]:
             stats_text += f"• {theme['theme']}: {theme['count']}\n"
 
-        await update.message.reply_text(stats_text)
+        await update.message.reply_text(stats_text, parse_mode='HTML')
 
     except Exception as e:
         logger.error(f"Error in stats: {e}")
