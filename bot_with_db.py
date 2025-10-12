@@ -361,7 +361,10 @@ def main():
 
     # ConversationHandler для управления диалогом
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[
+            CommandHandler('start', start),
+            CallbackQueryHandler(button_callback, pattern='^new_analysis$')
+        ],
         states={
             WAITING_FOR_PHOTO: [
                 MessageHandler(filters.PHOTO, receive_photo),
@@ -375,7 +378,6 @@ def main():
 
     # Добавляем обработчики
     application.add_handler(conv_handler)
-    application.add_handler(CallbackQueryHandler(button_callback))
     application.add_handler(CommandHandler('stats', stats_command))
 
     # Запускаем бота
