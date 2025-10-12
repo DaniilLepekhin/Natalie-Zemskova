@@ -18,6 +18,31 @@ from reportlab.pdfbase.ttfonts import TTFont
 import re
 
 
+def replace_emoji_for_pdf(text):
+    """Замена эмодзи на текстовые символы для корректного отображения в PDF"""
+    emoji_map = {
+        '🔴': '[1]',  # Красная чакра
+        '🟠': '[2]',  # Оранжевая чакра
+        '🟡': '[3]',  # Жёлтая чакра
+        '💚': '[4]',  # Зелёная чакра
+        '💙': '[5]',  # Голубая чакра
+        '💜': '[6]',  # Фиолетовая чакра
+        '🤍': '[7]',  # Белая чакра
+        '✨': '*',
+        '🔮': '~',
+        '🌿': '~',
+        '💫': '*',
+        '🕊': '~',
+        '🌸': '~',
+        '🔹': '•',
+    }
+
+    for emoji, replacement in emoji_map.items():
+        text = text.replace(emoji, replacement)
+
+    return text
+
+
 def register_fonts():
     """Регистрация шрифтов с кириллицей"""
     try:
@@ -181,8 +206,11 @@ def create_analysis_pdf(analysis_text, username, request_text):
     # Контейнер для элементов
     story = []
 
+    # Заменяем эмодзи на текстовые символы для PDF
+    analysis_text_clean = replace_emoji_for_pdf(analysis_text)
+
     # Парсим анализ
-    sections = parse_analysis_sections(analysis_text)
+    sections = parse_analysis_sections(analysis_text_clean)
 
     # Заголовок
     title = Paragraph(
