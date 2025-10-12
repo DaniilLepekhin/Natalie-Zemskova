@@ -283,8 +283,16 @@ def create_analysis_pdf(analysis_text, username, request_text):
                     if not line:
                         continue
 
-                    # Если строка начинается с эмодзи чакры или маркера
-                    if any(emoji in line[:5] for emoji in ['🔴', '🟠', '🟡', '💚', '💙', '💜', '🤍', '-', '•', 'Чакра']):
+                    # Если строка начинается с номера чакры [1]-[7] или маркера
+                    is_chakra_line = (
+                        line.startswith('[1]') or line.startswith('[2]') or
+                        line.startswith('[3]') or line.startswith('[4]') or
+                        line.startswith('[5]') or line.startswith('[6]') or
+                        line.startswith('[7]') or line.startswith('Чакра') or
+                        line.startswith('-') or line.startswith('•')
+                    )
+
+                    if is_chakra_line:
                         # Если накопились предыдущие строки, создаем параграф
                         if current_para:
                             para = Paragraph('<br/>'.join(current_para), styles['CustomBody'])
