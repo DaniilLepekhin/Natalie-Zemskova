@@ -243,12 +243,72 @@ def create_analysis_pdf(analysis_text, username, request_text):
                     if phrase.strip():
                         phrase_para = Paragraph(phrase.strip(), styles['TransformPhrase'])
                         story.append(phrase_para)
+
+            # Особая обработка для чакр (каждая с новой строки)
+            elif key == 'energy':
+                # Разбиваем по эмодзи чакр или по строкам
+                lines = content.split('\n')
+                current_para = []
+
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Если строка начинается с эмодзи чакры или маркера
+                    if any(emoji in line[:5] for emoji in ['🔴', '🟠', '🟡', '💚', '💙', '💜', '🤍', '-', '•', 'Чакра']):
+                        # Если накопились предыдущие строки, создаем параграф
+                        if current_para:
+                            para = Paragraph('<br/>'.join(current_para), styles['CustomBody'])
+                            story.append(para)
+                            current_para = []
+                        # Добавляем текущую строку
+                        current_para.append(line)
+                    else:
+                        # Продолжение предыдущей строки
+                        if current_para:
+                            current_para[-1] += ' ' + line
+                        else:
+                            current_para.append(line)
+
+                # Добавляем оставшееся
+                if current_para:
+                    para = Paragraph('<br/>'.join(current_para), styles['CustomBody'])
+                    story.append(para)
+
+            # Особая обработка для списков программ, изменений
+            elif key in ['programs', 'changes']:
+                # Разбиваем по строкам с маркерами
+                lines = content.split('\n')
+                items = []
+
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Если строка начинается с маркера или кавычки
+                    if line.startswith(('-', '•', '"', '–', '—')):
+                        items.append(line)
+                    elif items:
+                        # Продолжение предыдущего пункта
+                        items[-1] += ' ' + line
+                    else:
+                        items.append(line)
+
+                if items:
+                    para = Paragraph('<br/>'.join(items), styles['CustomBody'])
+                    story.append(para)
+
             else:
-                # Обычный текст
+                # Обычный текст - разбиваем по двойным переносам
                 paragraphs = content.split('\n\n')
                 for para_text in paragraphs:
-                    if para_text.strip():
-                        para = Paragraph(para_text.strip(), styles['CustomBody'])
+                    para_text = para_text.strip()
+                    if para_text:
+                        # Заменяем одинарные переносы на пробелы внутри параграфа
+                        para_text = para_text.replace('\n', ' ')
+                        para = Paragraph(para_text, styles['CustomBody'])
                         story.append(para)
 
             story.append(Spacer(1, 0.3*cm))
