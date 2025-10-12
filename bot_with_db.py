@@ -196,6 +196,20 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, p
         # Удаляем сообщение о процессе
         await processing_msg.delete()
 
+        # Очищаем файлы с диска (всё уже сохранено в БД)
+        try:
+            # Удаляем фото
+            if os.path.exists(user_sessions[user_id].photo_path):
+                os.remove(user_sessions[user_id].photo_path)
+                logger.info(f"🗑 Удалено фото: {user_sessions[user_id].photo_path}")
+
+            # Удаляем PDF
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+                logger.info(f"🗑 Удалён PDF: {pdf_path}")
+        except Exception as e:
+            logger.warning(f"Ошибка при удалении файлов: {e}")
+
         # Предлагаем новый анализ
         keyboard = [[InlineKeyboardButton("Провести новый анализ", callback_data="new_analysis")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
