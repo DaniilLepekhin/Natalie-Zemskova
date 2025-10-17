@@ -5,7 +5,6 @@ Multi-step анализ по Мета-Методу - УЛУЧШЕННАЯ ВЕР
 """
 
 from openai import OpenAI
-from cost_calculator import calculate_cost
 from config import OPENAI_API_KEY, OPENAI_MODEL
 
 
@@ -17,57 +16,33 @@ class MetaMethodAnalyzer:
     def analyze(self, request_text: str, username: str) -> tuple:
         """
         Выполняет полный анализ через 5 шагов
-        Возвращает (полный_текст_анализа, usage_info)
-        где usage_info = {'total_tokens': int, 'prompt_tokens': int, 'completion_tokens': int, 'cost_usd': float}
+        Возвращает (полный_текст_анализа, общее_количество_токенов)
         """
         total_tokens = 0
-        prompt_tokens = 0
-        completion_tokens = 0
 
         # Шаг 1: Глубинный анализ запроса
-        step1_result, usage1 = self._step1_deep_analysis(request_text, username)
-        total_tokens += usage1.total_tokens
-        prompt_tokens += usage1.prompt_tokens
-        completion_tokens += usage1.completion_tokens
+        step1_result, tokens1 = self._step1_deep_analysis(request_text, username)
+        total_tokens += tokens1
 
         # Шаг 2: Родовые и кармические паттерны
-        step2_result, usage2 = self._step2_ancestral_patterns(request_text, step1_result)
-        total_tokens += usage2.total_tokens
-        prompt_tokens += usage2.prompt_tokens
-        completion_tokens += usage2.completion_tokens
+        step2_result, tokens2 = self._step2_ancestral_patterns(request_text, step1_result)
+        total_tokens += tokens2
 
         # Шаг 3: Энергетика чакр и блоки
-        step3_result, usage3 = self._step3_chakra_analysis(request_text, step1_result)
-        total_tokens += usage3.total_tokens
-        prompt_tokens += usage3.prompt_tokens
-        completion_tokens += usage3.completion_tokens
+        step3_result, tokens3 = self._step3_chakra_analysis(request_text, step1_result)
+        total_tokens += tokens3
 
         # Шаг 4: Трансформационные фразы
-        step4_result, usage4 = self._step4_transformation_phrases(request_text, step1_result, step2_result)
-        total_tokens += usage4.total_tokens
-        prompt_tokens += usage4.prompt_tokens
-        completion_tokens += usage4.completion_tokens
+        step4_result, tokens4 = self._step4_transformation_phrases(request_text, step1_result, step2_result)
+        total_tokens += tokens4
 
         # Шаг 5: Финальная компоновка
-        final_result, usage5 = self._step5_final_composition(
+        final_result, tokens5 = self._step5_final_composition(
             username, request_text, step1_result, step2_result, step3_result, step4_result
         )
-        total_tokens += usage5.total_tokens
-        prompt_tokens += usage5.prompt_tokens
-        completion_tokens += usage5.completion_tokens
+        total_tokens += tokens5
 
-        # Рассчитываем стоимость
-        cost_usd = calculate_cost(self.model, prompt_tokens, completion_tokens)
-
-        usage_info = {
-            'total_tokens': total_tokens,
-            'prompt_tokens': prompt_tokens,
-            'completion_tokens': completion_tokens,
-            'cost_usd': cost_usd
-        }
-
-        return final_result, usage_info
-
+        return final_result, total_tokens
 
     def _step1_deep_analysis(self, request_text: str, username: str) -> tuple:
         """Шаг 1: Глубинный анализ запроса и выявление ключевых программ"""
@@ -135,7 +110,7 @@ class MetaMethodAnalyzer:
             max_tokens=800  # Увеличили для 3+ программ и уроков
         )
 
-        return response.choices[0].message.content, response.usage
+        return response.choices[0].message.content, response.usage.total_tokens
 
     def _step2_ancestral_patterns(self, request_text: str, step1_result: str) -> tuple:
         """Шаг 2: Родовые влияния и кармические паттерны"""
@@ -213,7 +188,7 @@ class MetaMethodAnalyzer:
             max_tokens=1000  # Увеличили для расшифровки и конкретных поколений
         )
 
-        return response.choices[0].message.content, response.usage
+        return response.choices[0].message.content, response.usage.total_tokens
 
     def _step3_chakra_analysis(self, request_text: str, step1_result: str) -> tuple:
         """Шаг 3: Анализ энергетики по чакрам С ПРОЦЕНТАМИ"""
@@ -264,7 +239,7 @@ class MetaMethodAnalyzer:
             max_tokens=800  # Увеличили для персональных комментариев
         )
 
-        return response.choices[0].message.content, response.usage
+        return response.choices[0].message.content, response.usage.total_tokens
 
     def _step4_transformation_phrases(self, request_text: str, step1_result: str, step2_result: str) -> tuple:
         """Шаг 4: Генерация трансформационных фраз"""
@@ -313,7 +288,7 @@ class MetaMethodAnalyzer:
             max_tokens=700  # Увеличили для 5-7 фраз
         )
 
-        return response.choices[0].message.content, response.usage
+        return response.choices[0].message.content, response.usage.total_tokens
 
     def _step5_final_composition(self, username: str, request_text: str,
                                  step1: str, step2: str, step3: str, step4: str) -> tuple:
@@ -335,43 +310,24 @@ class MetaMethodAnalyzer:
 ## Сканер подсознания по Мета-Методу
 
 **Что такое "Сканер подсознания"?**
-Это глубинный анализ запроса через призму Мета-Метода. Я смотрю на программы подсознания, родовые влияния, энергетику чакр и даю конкретные практики для трансформации.
+Это глубинный анализ твоего запроса через призму Мета-Метода. Я смотрю на программы подсознания, родовые влияния, энергетику чакр и даю конкретные практики для трансформации.
 
 ✨ **Сканер подсознания по Мета-Методу для {username}**
 
-**Запрос:**
+🔹 **Запрос:**
 [точная цитата запроса]
 
 **1. Контракты и подключки**
+[возьми КОНТРАКТ из части 2 — одно предложение с цитатой в кавычках]
 
-Контракт: [возьми КОНТРАКТ из части 2 — одно предложение с цитатой в кавычках]
+[возьми РАСШИФРОВКУ из части 2 — 5-7 предложений про то, где проявлялось, как влияло в прошлом, как будет влиять в будущем]
 
-• Как эта программа проявлялась в прошлом
-[из РАСШИФРОВКИ части 2: как влияло в прошлом, какие решения принимались, 2-3 предложения]
-
-• Как это влияет сейчас
-[из РАСШИФРОВКИ части 2: где это проявляется в жизни человека, конкретные примеры поведения, 2-3 предложения]
-
-• Как это может повлиять в будущем
-[из РАСШИФРОВКИ части 2: к чему приведёт, если не изменить программу, 1-2 предложения]
-
-**2. Слои программ. Откуда идёт программа**
-
-• Эта жизнь
-[Короткая информация о формировании программы в этой жизни из части 2, 1-2 предложения, или "Основной источник — родовой уровень"]
-
-• Родовой слой
-[возьми СЛОИ (КОНКРЕТНЫЕ ПОКОЛЕНИЯ) из части 2 — с указанием поколения: бабушка/прабабушка по маминой/папиной линии, 2-3 предложения]
-
-• Конкретные родовые сценарии
-[возьми РОДОВЫЕ_ДЕТАЛИ из части 2 — конкретный сценарий с цитатой, 2-3 предложения]
-
-• Прошлые жизни
-[возьми ПРОШЛЫЕ ЖИЗНИ из части 2, или напиши "Опыт не прослеживается напрямую", 1-2 предложения]
+**2. Слои программ. Родовые влияния**
+[возьми СЛОИ (КОНКРЕТНЫЕ ПОКОЛЕНИЯ) из части 2 — ОБЯЗАТЕЛЬНО с указанием конкретного поколения: бабушка/прабабушка по маминой/папиной линии, 3-4 предложения]
 
 **3. Энергоцентры (Чакры) и поток энергии**
 
-Важно понимать, где энергия застревает на уровне 7 чакр в отношении запроса.
+Важно понимать, где энергия застревает на уровне 7 чакр в отношении твоего запроса.
 
 [вставь ВСЕ 7 чакр из части 3 ТОЧНО как там написано, с процентами и персональными комментариями]
 
@@ -381,16 +337,23 @@ class MetaMethodAnalyzer:
 **5. Главные уроки души**
 [возьми УРОКИ ДУШИ из части 1 — минимум 3 конкретных урока с нумерацией]
 
-**6. Что важно изменить. Рекомендации**
+**6. Конкретные родовые сценарии**
+[возьми РОДОВЫЕ_ДЕТАЛИ из части 2 — конкретный сценарий с цитатой, 2-3 предложения]
+ВАЖНО: Этот раздел должен быть ДРУГИМ, чем раздел 2!
+
+**7. Связи из прошлых жизней**
+[возьми ПРОШЛЫЕ ЖИЗНИ из части 2, или напиши "Опыт не прослеживается напрямую"]
+
+**8. Что важно изменить. Рекомендации**
 [возьми ЧТО МЕНЯТЬ из части 1 — список с тире, минимум 3 пункта, КОНКРЕТНО с примерами]
 
-**7. Трансформационные фразы**
+**9. Трансформационные фразы**
 
 [возьми указание формата из части 4: "ФОРМАТ: полный" или "ФОРМАТ: короткий"]
 
 [вставь ВСЁ из части 4 — если там полная формула, вставь её целиком; если короткие фразы, вставь все 5-7 фраз]
 
-**8. Следующий шаг**
+**10. Следующий шаг**
 
 [Напиши 2-3 конкретных практических совета как у Natalie, привязанных к конкретным пунктам анализа]
 
@@ -412,7 +375,7 @@ class MetaMethodAnalyzer:
 - Все разделы должны быть наполнены контентом из анализа
 - Общая длина: 3000-3500 символов (глубина 7-10 минут чтения)
 
-ВАЖНО: Только 8 пунктов (не 10!). НЕ добавляй раздел 9, 10, 11. НЕ добавляй "Вдохновляющее послание".
+ВАЖНО: Только 10 пунктов. НЕ добавляй раздел 11. НЕ добавляй "Вдохновляющее послание".
 """
 
         response = self.client.chat.completions.create(
@@ -422,16 +385,15 @@ class MetaMethodAnalyzer:
             max_tokens=3000  # Увеличили для более длинного и глубокого текста
         )
 
-        return response.choices[0].message.content, response.usage
+        return response.choices[0].message.content, response.usage.total_tokens
 
 
 # Функция для использования в боте
 async def analyze_with_metamethod(request_text: str, username: str) -> tuple:
     """
     Главная функция для вызова из бота
-    Возвращает (результат_анализа, usage_info)
-    где usage_info = {"total_tokens": int, "prompt_tokens": int, "completion_tokens": int, "cost_usd": float}
+    Возвращает (результат_анализа, использованные_токены)
     """
     analyzer = MetaMethodAnalyzer()
-    result, usage_info = analyzer.analyze(request_text, username)
-    return result, usage_info
+    result, total_tokens = analyzer.analyze(request_text, username)
+    return result, total_tokens

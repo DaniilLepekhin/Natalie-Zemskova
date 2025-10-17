@@ -22,6 +22,7 @@ from pdf_generator import create_analysis_pdf
 from config import TELEGRAM_TOKEN, OPENAI_API_KEY, OPENAI_MODEL
 from database import get_db
 from metamethod_analyzer import analyze_with_metamethod
+from name_helper import extract_name_from_request, get_name_declensions_gpt, replace_pronouns_with_name
 
 # Настройка логирования
 logging.basicConfig(
@@ -37,7 +38,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 db = get_db()
 
 # Состояния для ConversationHandler
-WAITING_FOR_PHOTO, WAITING_FOR_REQUEST = range(2)
+WAITING_FOR_PHOTO, WAITING_FOR_REQUEST, WAITING_FOR_NAME = range(3)
 
 # Системный промпт для анализа - читаем из файла
 with open('prompt_final.txt', 'r', encoding='utf-8') as f:
@@ -50,6 +51,7 @@ class UserSession:
         self.photo_path = None
         self.request_text = None
         self.username = None
+        self.name_declensions = None  # Новое: склонения имени для замены местоимений
         self.start_time = None
 
 
@@ -154,13 +156,26 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     try:
         start_time = time.time()
 
+        # Получаем склонения имени для замены местоимений
+        logger.info(f"📝 Получаю склонения для имени: {user_sessions[user_id].username}")
+        name_declensions = get_name_declensions_gpt(user_sessions[user_id].username)
+        user_sessions[user_id].name_declensions = name_declensions
+        logger.info(f"✅ Склонения получены: {name_declensions}")
+
         # Выполняем анализ через multi-step MetaMethod analyzer
-        analysis_result, tokens_used = await analyze_with_metamethod(
+        analysis_result, usage_info = await analyze_with_metamethod(
             user_sessions[user_id].request_text,
             user_sessions[user_id].username
         )
 
+        # Заменяем местоимения на склонённые формы имени
+        logger.info("🔄 Заменяю местоимения на склонённое имя...")
+        analysis_result = replace_pronouns_with_name(analysis_result, name_declensions)
+
         processing_time = int(time.time() - start_time)
+
+        # Извлекаем токены из usage_info
+        tokens_used = usage_info.get('total_tokens', 0)
 
         # Генерируем PDF
         pdf_path = create_analysis_pdf(
@@ -244,6 +259,43 @@ async def receive_request(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     user_sessions[user_id].request_text = update.message.text
 
+    # Пробуем извлечь имя из запроса
+    extracted_name = extract_name_from_request(update.message.text)
+
+    if extracted_name:
+        # Имя найдено в запросе
+        user_sessions[user_id].username = extracted_name
+        logger.info(f"✅ Имя извлечено из запроса: {extracted_name}")
+        return await start_analysis(update, context, user_id)
+    else:
+        # Имя не найдено - просим ввести
+        await update.message.reply_text(
+            "Для персонализации анализа, пожалуйста, напиши своё имя.\n\n"
+            "Например: Анна, Дмитрий, Мария"
+        )
+        return WAITING_FOR_NAME
+
+
+async def receive_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Получение имени пользователя"""
+    user_id = update.effective_user.id
+
+    if user_id not in user_sessions:
+        await update.message.reply_text(
+            "Что-то пошло не так. Используй /start для начала."
+        )
+        return ConversationHandler.END
+
+    # Сохраняем имя
+    name = update.message.text.strip().split()[0]  # Берём первое слово
+    user_sessions[user_id].username = name
+    logger.info(f"✅ Имя получено отдельно: {name}")
+
+    return await start_analysis(update, context, user_id)
+
+
+async def start_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+    """Запуск анализа после получения имени"""
     # Показываем что работаем
     processing_msg = await update.message.reply_text(
         "⏳ Провожу глубокий многоуровневый анализ...\n"
@@ -385,6 +437,9 @@ def main():
             ],
             WAITING_FOR_REQUEST: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_request),
+            ],
+            WAITING_FOR_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_name),
             ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
