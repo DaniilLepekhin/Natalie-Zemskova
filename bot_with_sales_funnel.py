@@ -22,6 +22,7 @@ from pdf_generator_with_background import generate_pdf
 from config import TELEGRAM_TOKEN, OPENAI_API_KEY, OPENAI_MODEL
 from database import get_db
 from metamethod_analyzer import analyze_with_metamethod
+from metamethod_analyzer_test import analyze_with_metamethod_test  # ТЕСТОВАЯ ВЕРСИЯ
 from sales_funnel_texts import *
 from name_helper import extract_name_from_request, get_name_declensions_gpt, replace_pronouns_with_name
 import asyncio
@@ -897,6 +898,93 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def test_deep_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    ТЕСТОВАЯ КОМАНДА: Запускает глубокий анализ с увеличенными токенами
+    Использование: /test_deep <имя> <запрос>
+    Пример: /test_deep Наталья Хочу зарабатывать больше, выгорание...
+    """
+    user_id = update.effective_user.id
+
+    # Проверяем аргументы
+    if not context.args or len(context.args) < 2:
+        await update.message.reply_text(
+            "❌ Неправильный формат команды!\n\n"
+            "Использование:\n"
+            "/test_deep <Имя> <текст запроса>\n\n"
+            "Пример:\n"
+            "/test_deep Наталья Хочу зарабатывать больше, быстрое выгорание, разведена..."
+        )
+        return
+
+    # Извлекаем имя и запрос
+    username = context.args[0]
+    request_text = " ".join(context.args[1:])
+
+    await update.message.reply_text(
+        f"🔬 ТЕСТОВЫЙ РЕЖИМ: Глубокий анализ\n\n"
+        f"Имя: {username}\n"
+        f"Запрос: {request_text[:100]}...\n\n"
+        f"⚠️ Это займёт 3-5 минут (в 2-3 раза дольше обычного)\n"
+        f"⚠️ Стоимость: ~$0.50 (в 2.5 раза дороже обычного)\n\n"
+        f"Запускаю глубокий анализ с увеличенными токенами..."
+    )
+
+    processing_msg = await update.message.reply_text(
+        "⏳ Провожу ГЛУБОКИЙ многоуровневый анализ...\n"
+        "Это займёт 3-5 минут.\n"
+        "Я прохожу через 5 этапов с максимальной детализацией:\n"
+        "программы → род → чакры → фразы → компоновка 🔮✨"
+    )
+
+    try:
+        # Запускаем ТЕСТОВЫЙ анализ
+        logger.info(f"🔬 TEST DEEP: Запуск глубокого анализа для {username}")
+        analysis_result, usage_info = await analyze_with_metamethod_test(request_text, username)
+
+        logger.info(f"✅ TEST DEEP: Анализ завершён. Токены: {usage_info['total_tokens']}, Стоимость: ${usage_info['cost_usd']:.4f}")
+
+        await processing_msg.edit_text(
+            f"✅ Глубокий анализ готов!\n\n"
+            f"📊 Статистика:\n"
+            f"  • Токенов: {usage_info['total_tokens']} (обычно ~6300)\n"
+            f"  • Стоимость: ${usage_info['cost_usd']:.4f} (обычно ~$0.20)\n"
+            f"  • Символов: {len(analysis_result)} (обычно ~2000)\n\n"
+            f"📄 Генерирую PDF..."
+        )
+
+        # Генерируем PDF
+        pdf_path = f"/tmp/test_deep_{user_id}_{int(time.time())}.pdf"
+        generate_pdf(analysis_result, request_text, username, pdf_path)
+
+        # Отправляем PDF
+        with open(pdf_path, 'rb') as pdf_file:
+            await update.message.reply_document(
+                document=pdf_file,
+                filename=f"Сканер_подсознания_{username}_DEEP.pdf",
+                caption=(
+                    f"🔬 ТЕСТОВЫЙ ГЛУБОКИЙ АНАЛИЗ\n\n"
+                    f"📊 Сравнение с обычной версией:\n"
+                    f"  • Токены: {usage_info['total_tokens']} vs ~6300 (в {usage_info['total_tokens']/6300:.1f}x)\n"
+                    f"  • Стоимость: ${usage_info['cost_usd']:.2f} vs ~$0.20 (в {usage_info['cost_usd']/0.20:.1f}x)\n"
+                    f"  • Символов: {len(analysis_result)} vs ~2000 (в {len(analysis_result)/2000:.1f}x)\n\n"
+                    f"Это тестовая версия с увеличенными лимитами токенов для максимальной глубины."
+                )
+            )
+
+        # Удаляем временный файл
+        os.remove(pdf_path)
+
+        await processing_msg.delete()
+
+    except Exception as e:
+        logger.error(f"❌ TEST DEEP: Ошибка: {e}")
+        await processing_msg.edit_text(
+            f"❌ Ошибка при генерации тестового анализа:\n{str(e)}\n\n"
+            "Попробуй ещё раз или напиши разработчику."
+        )
+
+
 def main():
     """Запуск бота"""
     application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -936,8 +1024,12 @@ def main():
 
     application.add_handler(conv_handler)
 
+    # Добавляем тестовую команду для глубокого анализа
+    application.add_handler(CommandHandler('test_deep', test_deep_analysis))
+
     logger.info("🤖 Мета Лиза запущена с воронкой продаж!")
     logger.info(f"📊 Модель: {OPENAI_MODEL}")
+    logger.info("🔬 Тестовая команда /test_deep доступна для глубокого анализа")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
