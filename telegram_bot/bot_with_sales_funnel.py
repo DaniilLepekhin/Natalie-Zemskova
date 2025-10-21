@@ -611,11 +611,21 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     try:
         start_time = time.time()
 
+        # Получаем склонения имени для замены местоимений
+        logger.info(f"📝 Получаю склонения для имени: {user_sessions[user_id].username}")
+        name_declensions = get_name_declensions_gpt(user_sessions[user_id].username)
+        user_sessions[user_id].name_declensions = name_declensions
+        logger.info(f"✅ Склонения получены: {name_declensions}")
+
         # Выполняем анализ
         analysis_result, usage_info = await analyze_with_metamethod(
             user_sessions[user_id].request_text,
             user_sessions[user_id].username
         )
+
+        # Заменяем местоимения на склонённые формы имени
+        logger.info("🔄 Заменяю местоимения на склонённое имя...")
+        analysis_result = replace_pronouns_with_name(analysis_result, name_declensions)
 
         processing_time = int(time.time() - start_time)
 
