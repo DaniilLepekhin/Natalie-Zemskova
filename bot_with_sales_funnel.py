@@ -618,11 +618,18 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, p
         user_sessions[user_id].name_declensions = name_declensions
         logger.info(f"✅ Склонения получены: {name_declensions}")
 
-        # Выполняем анализ
-        analysis_result, usage_info = await analyze_with_metamethod(
-            user_sessions[user_id].request_text,
-            user_sessions[user_id].username
-        )
+        # Выполняем анализ (тестовый или обычный)
+        if user_sessions[user_id].payment_status == 'test_deep':
+            logger.info("🔬 Используется ТЕСТОВЫЙ глубокий анализатор")
+            analysis_result, usage_info = await analyze_with_metamethod_test(
+                user_sessions[user_id].request_text,
+                user_sessions[user_id].username
+            )
+        else:
+            analysis_result, usage_info = await analyze_with_metamethod(
+                user_sessions[user_id].request_text,
+                user_sessions[user_id].username
+            )
 
         # Заменяем местоимения на склонённые формы имени
         logger.info("🔄 Заменяю местоимения на склонённое имя...")
@@ -653,13 +660,26 @@ async def process_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, p
 
         db.save_photo_base64(analysis_id, user_sessions[user_id].photo_path)
 
-        # Отправляем PDF
+        # Отправляем PDF (с разными подписями для теста и обычной версии)
+        if user_sessions[user_id].payment_status == 'test_deep':
+            caption = (
+                f"🔬 ТЕСТОВЫЙ ГЛУБОКИЙ АНАЛИЗ готов!\n\n"
+                f"📊 Сравнение с обычной версией:\n"
+                f"  • Токены: {usage_info['total_tokens']} vs ~6300 (в {usage_info['total_tokens']/6300:.1f}x)\n"
+                f"  • Стоимость: ${usage_info['cost_usd']:.2f} vs ~$0.20 (в {usage_info['cost_usd']/0.20:.1f}x)\n"
+                f"  • Символов: {len(analysis_result)} vs ~2500 (в {len(analysis_result)/2500:.1f}x)\n\n"
+                f"✨ Работай с трансформационными фразами каждый день! 🙏"
+            )
+            filename = f"Сканер_подсознания_{user_sessions[user_id].username}_DEEP.pdf"
+        else:
+            caption = "✨ Твой персональный Сканер подсознания готов!\n\nРаботай с трансформационными фразами каждый день. 🙏"
+            filename = f"Сканер_подсознания_{user_sessions[user_id].username}.pdf"
+
         with open(pdf_path, 'rb') as pdf_file:
             await update.message.reply_document(
                 document=pdf_file,
-                filename=f"Сканер_подсознания_{user_sessions[user_id].username}.pdf",
-                caption="✨ Твой персональный Сканер подсознания готов!\n\n"
-                        "Работай с трансформационными фразами каждый день. 🙏"
+                filename=filename,
+                caption=caption
             )
 
         await processing_msg.delete()
@@ -898,91 +918,40 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-async def test_deep_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def test_deep_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """
-    ТЕСТОВАЯ КОМАНДА: Запускает глубокий анализ с увеличенными токенами
-    Использование: /test_deep <имя> <запрос>
-    Пример: /test_deep Наталья Хочу зарабатывать больше, выгорание...
+    ТЕСТОВАЯ КОМАНДА: Запускает freescan с глубоким анализом (увеличенные токены)
     """
     user_id = update.effective_user.id
 
-    # Проверяем аргументы
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text(
-            "❌ Неправильный формат команды!\n\n"
-            "Использование:\n"
-            "/test_deep <Имя> <текст запроса>\n\n"
-            "Пример:\n"
-            "/test_deep Наталья Хочу зарабатывать больше, быстрое выгорание, разведена..."
-        )
-        return
+    # Инициализируем сессию с флагом TEST_DEEP
+    user_sessions[user_id] = UserSession()
+    user_sessions[user_id].payment_status = 'test_deep'  # Специальный статус для теста
 
-    # Извлекаем имя и запрос
-    username = context.args[0]
-    request_text = " ".join(context.args[1:])
+    # Сохраняем пользователя в БД
+    db.save_user(
+        user_id=user_id,
+        username=update.effective_user.username,
+        first_name=update.effective_user.first_name,
+        last_name=update.effective_user.last_name
+    )
 
     await update.message.reply_text(
-        f"🔬 ТЕСТОВЫЙ РЕЖИМ: Глубокий анализ\n\n"
-        f"Имя: {username}\n"
-        f"Запрос: {request_text[:100]}...\n\n"
-        f"⚠️ Это займёт 3-5 минут (в 2-3 раза дольше обычного)\n"
-        f"⚠️ Стоимость: ~$0.50 (в 2.5 раза дороже обычного)\n\n"
-        f"Запускаю глубокий анализ с увеличенными токенами..."
+        "🔬 ТЕСТОВЫЙ РЕЖИМ: Глубокий анализ\n\n"
+        "⚠️ Это займёт 3-5 минут (в 2-3 раза дольше)\n"
+        "⚠️ Стоимость: ~$0.50 (в 2.5 раза дороже)\n"
+        "⚠️ Глубина анализа: в 3-4 раза больше текста\n\n"
+        "Сейчас начнём..."
     )
 
-    processing_msg = await update.message.reply_text(
-        "⏳ Провожу ГЛУБОКИЙ многоуровневый анализ...\n"
-        "Это займёт 3-5 минут.\n"
-        "Я прохожу через 5 этапов с максимальной детализацией:\n"
-        "программы → род → чакры → фразы → компоновка 🔮✨"
+    await update.message.reply_text(
+        "🌿 Добро пожаловать!\n\n"
+        "Ты можешь пройти сканирование прямо сейчас.\n\n"
+        "Отправь мне своё фото (селфи в полный рост или портрет), "
+        "и я проведу диагностику твоего энергетического состояния 💫"
     )
 
-    try:
-        # Запускаем ТЕСТОВЫЙ анализ
-        logger.info(f"🔬 TEST DEEP: Запуск глубокого анализа для {username}")
-        analysis_result, usage_info = await analyze_with_metamethod_test(request_text, username)
-
-        logger.info(f"✅ TEST DEEP: Анализ завершён. Токены: {usage_info['total_tokens']}, Стоимость: ${usage_info['cost_usd']:.4f}")
-
-        await processing_msg.edit_text(
-            f"✅ Глубокий анализ готов!\n\n"
-            f"📊 Статистика:\n"
-            f"  • Токенов: {usage_info['total_tokens']} (обычно ~6300)\n"
-            f"  • Стоимость: ${usage_info['cost_usd']:.4f} (обычно ~$0.20)\n"
-            f"  • Символов: {len(analysis_result)} (обычно ~2000)\n\n"
-            f"📄 Генерирую PDF..."
-        )
-
-        # Генерируем PDF
-        pdf_path = f"/tmp/test_deep_{user_id}_{int(time.time())}.pdf"
-        generate_pdf(analysis_result, request_text, username, pdf_path)
-
-        # Отправляем PDF
-        with open(pdf_path, 'rb') as pdf_file:
-            await update.message.reply_document(
-                document=pdf_file,
-                filename=f"Сканер_подсознания_{username}_DEEP.pdf",
-                caption=(
-                    f"🔬 ТЕСТОВЫЙ ГЛУБОКИЙ АНАЛИЗ\n\n"
-                    f"📊 Сравнение с обычной версией:\n"
-                    f"  • Токены: {usage_info['total_tokens']} vs ~6300 (в {usage_info['total_tokens']/6300:.1f}x)\n"
-                    f"  • Стоимость: ${usage_info['cost_usd']:.2f} vs ~$0.20 (в {usage_info['cost_usd']/0.20:.1f}x)\n"
-                    f"  • Символов: {len(analysis_result)} vs ~2000 (в {len(analysis_result)/2000:.1f}x)\n\n"
-                    f"Это тестовая версия с увеличенными лимитами токенов для максимальной глубины."
-                )
-            )
-
-        # Удаляем временный файл
-        os.remove(pdf_path)
-
-        await processing_msg.delete()
-
-    except Exception as e:
-        logger.error(f"❌ TEST DEEP: Ошибка: {e}")
-        await processing_msg.edit_text(
-            f"❌ Ошибка при генерации тестового анализа:\n{str(e)}\n\n"
-            "Попробуй ещё раз или напиши разработчику."
-        )
+    return WAITING_FOR_PHOTO
 
 
 def main():
@@ -992,6 +961,7 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler('start', start),
+            CommandHandler('test_deep', test_deep_analysis),  # ТЕСТОВАЯ КОМАНДА
         ],
         states={
             QUIZ_STATE: [
@@ -1023,9 +993,6 @@ def main():
     )
 
     application.add_handler(conv_handler)
-
-    # Добавляем тестовую команду для глубокого анализа
-    application.add_handler(CommandHandler('test_deep', test_deep_analysis))
 
     logger.info("🤖 Мета Лиза запущена с воронкой продаж!")
     logger.info(f"📊 Модель: {OPENAI_MODEL}")
