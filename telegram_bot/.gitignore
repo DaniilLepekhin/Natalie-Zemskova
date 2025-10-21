@@ -1,0 +1,48 @@
+# Чувствительные данные
+config.py
+*.env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Временные файлы
+*.pdf
+user_photos/
+*.jpg
+*.jpeg
+*.png
+*.gif
+!pdf_background.png
+!A4*.png
+
+# Базы данных
+*.db
+*.sqlite3
+
+# Логи
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*~
+*.bak
+*.backup
+*.orig
