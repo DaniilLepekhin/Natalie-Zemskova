@@ -871,16 +871,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif query.data == 'retry_email':
         return await retry_email_input(update, context)
     elif query.data == "new_analysis":
+        await query.answer()
         user_id = query.from_user.id
         username = query.from_user.first_name or "Друг"
 
         if user_id in user_sessions:
             user_sessions[user_id].photo_path = None
             user_sessions[user_id].request_text = None
+            user_sessions[user_id].username = None
 
         await query.message.reply_text(
             "Отлично! Начнём новый анализ. 🌟\n\n"
-            "Отправь мне фото."
+            "Отправь мне фото и напиши свой запрос."
         )
         return WAITING_FOR_PHOTO
 
@@ -915,6 +917,7 @@ def main():
             WAITING_FOR_PHOTO: [
                 MessageHandler(filters.PHOTO, receive_photo),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_without_photo),
+                CallbackQueryHandler(button_callback),
             ],
             WAITING_FOR_REQUEST: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, receive_request),
